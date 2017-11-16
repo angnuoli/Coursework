@@ -46,7 +46,7 @@ class Server:
     # IP and port number
     HOST = ''
     PORT = 0
-    socket = null
+    socket = None
     flagExpect = 0
     troll = ()
 
@@ -55,6 +55,7 @@ class Server:
 
     """docstring for Server"""
     def __init__(self):
+        pass
     
     # initialize the UDP socket, bind with port number
     def initSocket(self):
@@ -62,7 +63,7 @@ class Server:
         self.socket.bind((self.HOST, self.PORT))
 
     # receive the packet and check if it is the correct packet
-    def isCorrectPacket(message):
+    def isCorrectPacket(self, message):
         # the header
         clientIP = message[0:4]
         clientPort = message[4:6]
@@ -76,7 +77,7 @@ class Server:
         else :
             # send the expected sequence number
             self.socket.sendto(self.sequenceNumExpect.to_bytes(1, byteorder='big'), self.troll)
-            reture False
+            return False
 
     # MD5 checksum, check if two files are bitwise identical
     def Md5(fileX, fileY) :
@@ -115,7 +116,7 @@ if not os.path.exists(subdirectory):
     os.makedirs(subdirectory)
 
 # new class
-Server server
+server = Server()
 
 # get the troll port number 
 trollPort = int(sys.argv[2])
@@ -140,6 +141,7 @@ while True:
         break
 
 # Secondly, receive the second segment: 20 bytes of filename
+server.flagExpect = 2
 while True:
     message, clientAddress = server.socket.recvfrom(server.PORT)
     # the header

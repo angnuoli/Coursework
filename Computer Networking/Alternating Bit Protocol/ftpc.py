@@ -26,6 +26,8 @@ The program will give a termination message.
 """
 
 # import os, sys and socket module
+
+# import os, sys and socket module
 import os
 import sys
 import socket
@@ -37,11 +39,11 @@ class Client:
     chunkBytesSize = 900
 
     filename = ""
-    filesize = null
-    socket = null
+    filesize = None
+    socket = None
 
     # packet components
-    payloadHead = null
+    payloadHead = None
     flag = 0
     sequenceNum = 0
 
@@ -50,43 +52,44 @@ class Client:
     PORT = 4023
 
     """docstring for Client"""
-    def __init__(self):
-        
+    def __init__(self) :
+        pass
+
     # transform remoteIP and port to payloadHead
-    def initPayloadHead(self, remoteIP, remotePort):
+    def initPayloadHead(self, remoteIP, remotePort) :
         self.payloadHead = b''
         for byte in remoteIP:
             self.payloadHead = self.payloadHead + int(byte).to_bytes(1, byteorder = 'big')
         self.payloadHead = self.payloadHead + remotePort
 
     # fit the filename in 20 bytes
-    def initFilename(self):
-        if (len(filename) < 20) :
-            print("The filename is: {}".format(filename))
-            while len(filename) < 20:
-                filename = filename + " "
-        elif (len(filename) > 20) :
+    def initFilename(self) :
+        if (len(self.filename) < 20) :
+            print("The filename is: {}".format(self.filename))
+            while len(self.filename) < 20:
+                self.filename = self.filename + " "
+        elif (len(self.filename) > 20) :
             print("Warning! The filename is more than 20 bytes.")
             sys.exit(0)
 
     # initialize the UDP socket, bind with port number 4023
-    def initSocket(self):
+    def initSocket(self) :
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.bind((self.HOST, self.PORT))
         print("The client port number is {}.".format(self.PORT))
 
     # send the data to the address
-    def sendto(self, data, address):
+    def sendto(self, data, address) :
         self.socket.sendto(self.generatePacket(data), address)
 
     # combine header with data to generate a packet
-    def generatePacket(self, data):
+    def generatePacket(self, data) :
         return self.payloadHead + self.flag.to_bytes(1, byteorder = 'big') + self.sequenceNum.to_bytes(1, byteorder = 'big') + data
 
     # check if ACK matches the sequence number
     def isACK(self):
         # wait for response, set the timeout as 50ms
-        rlist, wlist, xlist = select.select([clientSocket], [], [], 0.5);
+        rlist, wlist, xlist = select.select([client.socket], [], [], 0.5);
         # once get a response, check the ACK
         if len(rlist) > 0:
             ACK = int.from_bytes(rlist[0].recv(1), byteorder = 'big')
@@ -122,11 +125,11 @@ except OSError as e:
     sys.exit(0)
 
 # new client
-Client client;
+client = Client()
 
 # get the filesize, the byte order is Big-Endian
 client.filesize = os.path.getsize(filename).to_bytes(4, byteorder = 'big')
-print("Filesize of the file to be sent: {} bytes" .format(int.from_bytes(filesize, byteorder='big')))
+print("Filesize of the file to be sent: {} bytes" .format(int.from_bytes(client.filesize, byteorder='big')))
 
 # process the filename
 client.filename = filename
@@ -174,7 +177,7 @@ while True:
     if len(fileContent) <= 0:
         # send Fin
         client.flag = 4
-        client.sendto(null, troll)
+        client.sendto(None, troll)
         print("All data has been transmitted!")
         break
 
@@ -186,7 +189,7 @@ while True:
         client.sendto(fileContent, troll)
 
         print("The size of current data segment sent to the server is: {} bytes" .format(len(fileContent)))
-        print("The size of rest data: {} bytes".format(int.from_bytes(filesize, byteorder='big') - totalFile))
+        print("The size of rest data: {} bytes".format(int.from_bytes(client.filesize, byteorder='big') - totalFile))
 
         if client.isACK():
             print("{}th segment transmission successful!".format(counter))
