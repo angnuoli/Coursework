@@ -4,9 +4,11 @@
 Program file: ftpc.py
 Nov 14, 2017
 
-This program is to send all bytes of a local file to a troll process and the troll process will send the data to a remote server using Alternating Bit Protocol over UDP.
+The client program is to send all bytes of a local file to a troll process and the troll process will send the data to a remote server using Alternating Bit Protocol over UDP with an artificial packet loss rate.
 
-The client port number should match the client port number assigned to troll process.
+The default client port number is 4023.
+
+The port number should match the client port number assigned to troll process.
 
 Firstly, the client will send the first segment: 4 bytes of filesize. The header is 8 bytes contains 4 bytes of server IP address, 2 bytes of server port number, 1 bytes of flag (flag is 1) and 1 bytes of sequence number {0,1}. The program generates sequence number periodically. After sending a packet, it waits for an ACK.
     1. If the client receives an ACK, it will check if the received ACK equals to next sequence number. If so, the tranmission is successful and it will send next packet. If not, it will resend this segment immediately.
@@ -16,16 +18,14 @@ Secondly, the client will send the second segment: 20 bytes of filename. The hea
 
 After sending the filesize and filename successfully, the client will send a series of "chunk" data segments. Each one contains 900 bytes of data. The header structure is same and the flag is 3. If it receives a wrong ACK or timeout happens, it will resend the segment; else it will send next chunk data. 
 
-Finally, after all data has been transmitted, the client will send a fin packet in which the flag is 4 and breaks the loop without waiting for an ACK.
+Finally, after all data has been transmitted, the client will send a FIN message in which the flag is 4 and break the loop without waiting for an ACK.
 
-Testing program to write "python3 ftpc.py <remote-IP-on-gamma> <remote-port-on-gamma> <troll-port-on-beta> <local-file-to-transfer>" in command line. (Assume gamme is server host, beta is client host).
+Testing program to write "python3 ftpc.py <remote-IP-on-gamma> <remote-port-on-gamma> <troll-port-on-beta> <local-file-to-transfer>" in command line. (Assume gamma is server host, beta is client host).
 
 The file will be received by the server and stored in the "recv" folder with the same filename in the server host.
 
 The program will give a termination message.
 """
-
-# import os, sys and socket module
 
 # import os, sys and socket module
 import os
@@ -34,12 +34,9 @@ import socket
 import select
 import time
 
-class Client:
+class Client():
     # identify the size of a block of bytes to be read, assume it is 900 bytes
     chunkBytesSize = 900
-
-    filename = ""
-    filesize = None
     socket = None
 
     # packet components
@@ -63,14 +60,15 @@ class Client:
         self.payloadHead = self.payloadHead + remotePort
 
     # fit the filename in 20 bytes
-    def initFilename(self) :
-        if (len(self.filename) < 20) :
-            print("The filename is: {}".format(self.filename))
-            while len(self.filename) < 20:
-                self.filename = self.filename + " "
-        elif (len(self.filename) > 20) :
+    def initFilename(self, filename) :
+        if (len(filename) < 20) :
+            print("The filename is: {}".format(filename))
+            while len(filename) < 20:
+                filename = filename + " "
+        elif (len(filename) > 20) :
             print("Warning! The filename is more than 20 bytes.")
             sys.exit(0)
+        return filename
 
     # initialize the UDP socket, bind with port number 4023
     def initSocket(self) :
@@ -84,7 +82,17 @@ class Client:
 
     # combine header with data to generate a packet
     def generatePacket(self, data) :
-        return self.payloadHead + self.flag.to_bytes(1, byteorder = 'big') + self.sequenceNum.to_bytes(1, byteorder = 'big') + data
+        return self.payloadHead + self.flag.to_bytes(1, byteorder = 'big') + self.sequenceNum.to_bytes(1, byteorder = 'big') + self.wrapData(data)
+
+    # wrap data to bytes object
+    def wrapData(self, data) :
+        if isinstance(data, str):
+            return self.initFilename(data)
+        elif isinstance(data, int):
+            return data.to_bytes(1, byteorder = 'big')
+        elif isinstance(data, bytes):
+            return data
+        return b''
 
     # check if ACK matches the sequence number
     def isACK(self):
@@ -128,12 +136,8 @@ except OSError as e:
 client = Client()
 
 # get the filesize, the byte order is Big-Endian
-client.filesize = os.path.getsize(filename).to_bytes(4, byteorder = 'big')
-print("Filesize of the file to be sent: {} bytes" .format(int.from_bytes(client.filesize, byteorder='big')))
-
-# process the filename
-client.filename = filename
-client.initFilename()
+filesize = os.path.getsize(filename).to_bytes(4, byteorder = 'big')
+print("Filesize of the file to be sent: {} bytes" .format(int.from_bytes(filesize, byteorder='big')))
 
 # create a socket
 client.initSocket()
@@ -154,7 +158,7 @@ client.flag = 1
 client.sequenceNum = 0
 while True:
     # send payloadHead, flag, sequenceNum and 4 bytes of filesize to troll process
-    client.sendto(client.filesize, troll)
+    client.sendto(filesize, troll)
     if client.isACK():
         break
 
@@ -162,7 +166,7 @@ while True:
 client.flag = 2
 while True:
     # send filename and receive the response
-    client.sendto(client.filename.encode(), troll)
+    client.sendto(filename.encode(), troll)
     if client.isACK():
         break
 
@@ -175,9 +179,9 @@ while True:
 
     # if there is no data to transmit, break the loop
     if len(fileContent) <= 0:
-        # send Fin
+        # send FIN control message
         client.flag = 4
-        client.sendto(None, troll)
+        client.sendto(b'', troll)
         print("All data has been transmitted!")
         break
 
@@ -185,24 +189,24 @@ while True:
     while True:
         # avoid overrun UDP buffer
         time.sleep(0.015)
-        # send other data segmants and receive the sequence response
+        # send other data segments and receive the sequence response
         client.sendto(fileContent, troll)
 
-        print("The size of current data segment sent to the server is: {} bytes" .format(len(fileContent)))
-        print("The size of rest data: {} bytes".format(int.from_bytes(client.filesize, byteorder='big') - totalFile))
+        print("The size of current segment sent to the server is: {} bytes" .format(len(fileContent)))
+        print("The size of rest data: {} bytes".format(int.from_bytes(filesize, byteorder='big') - totalFile))
 
         if client.isACK():
             print("{}th segment transmission successful!".format(counter))
             totalFile += len(fileContent)
             break
         else:
-            print("Warning! {}th Packet loss happened. Resend the {}th data packet.".format(counter, counter))
+            print("Warning! {}th segment lost. Resend {}th data segment.".format(counter, counter))
 
 
 # print termination message
-print("\nClient temination message:")
-print("The file tranmission is completed.")
-print("Firesize sent to the server: {} bytes.\nFilename recevied by the server: {}" .format(int.from_bytes(filesize, byteorder='big'), filename))
+print("\nClient Termination Message:")
+print("The file transmission is completed.")
+print("Filesize sent to the server: {} bytes.\nFilename received by the server: {}" .format(int.from_bytes(filesize, byteorder='big'), filename))
 
 print("Process time: {} s.".format(time.time() - A1))
 

@@ -4,9 +4,9 @@
 Program file: ftps.py
 Nov 14, 2017
 
-This program is to received all bytes from a troll process using Alternating Bit Protocol over UDP.
+The server program is to receive all bytes from the client using Alternating Bit Protocol over UDP and send an ACK back through a troll process with an artificial packet loss rate.
 
-The file received is stored in the "recv" subfolder with the same filename from the client machine.
+The received file is stored in the "recv" sub-folder with the same filename received from the client machine.
 
 Firstly, the server receives the first segment: 4 bytes of filesize. The header is 7 bytes contains 4 bytes of server IP address, 2 bytes of server port number, 1 bytes of flag and 1 bytes of sequence number. 
     1. If the flag is not 1 or sequence number does not match the expected value, the program will drop the packet and send expected sequence number to client. 
@@ -14,13 +14,13 @@ Firstly, the server receives the first segment: 4 bytes of filesize. The header 
 
 Secondly, the server receives the second segment: 20 bytes of filename. The header component is same. The flag should be 2 and process it in the same way.
 
-After receiving the filesize and filename, the program creates a new file with the filename in 'recv' subfolder and it is ready to receive a series of "chunk" data segments. Each segment contains 900 bytes of data. The header is 7 bytes contains 4 bytes of server IP address, 2 bytes of server port number, 1 bytes of flag and 1 bytes of sequence number {0,1}. 
+After receiving the filesize and filename, the program creates a new file with the filename in "recv" sub-folder and it is ready to receive a series of "chunk" data segments. Each segment contains 900 bytes of data. The header is 7 bytes contains 4 bytes of server IP address, 2 bytes of server port number, 1 bytes of flag and 1 bytes of sequence number {0,1}. 
     1. If the flag is not 3 or sequence number does not match the expected value, the program will drop the packet and send expected sequence number to client. 
     2. If the packet is correct, update expected sequence number and send it as ACK. Write the data to the new file.
 
 Finally, there are two ways to stop the program.
-    1. If it receive a fin packet in which flag is 4, the program will break the loop of receiving data.
-    2. If the size of received file matches the received filesize parameter and the program does not receive any packet for a while (timeout = 5s, because timeout of client is 50ms), the program will break the loop of receiving data.
+    1. If it receive a FIN message in which flag is 4, the program will break the loop of receiving data.
+    2. If the size of received file matches the received filesize parameter and the program does not receive any packet for a while (timeout = 5s, because timeout of client is 50 ms), the program will break the loop of receiving data.
 
 This is a stop-and-wait program. 
 
@@ -80,7 +80,7 @@ class Server:
             return False
 
     # MD5 checksum, check if two files are bitwise identical
-    def Md5(fileX, fileY) :
+    def Md5(self, fileX, fileY) :
         rfile = hashlib.md5()
         sfile = hashlib.md5()
 
@@ -162,7 +162,7 @@ counter = 0
 guard = 0
 server.flagExpect = 3
 while True:
-    # last wait time is 5s
+    # last wait time is 5 s
     rlist, wlist, xlist = select.select([server.socket], [], [], 5)
     if len(rlist) <= 0:
         guard += 1
@@ -180,38 +180,37 @@ while True:
             duplicated_file.write(data)
             counterSize += len(data)
             counter += 1
-            print("{}th data segment tranmission is successful. Already received filesize is {} bytes.".format(counter, counterSize))
+            print("{}th data segment transmission is successful. Already received filesize is {} bytes.".format(counter, counterSize))
         elif flag != 4:
-            print("Warning! Found a duplicated {}th packet. Drop the packet.".format(counter - 1))
+            print("Warning! Found a duplicated {}th segment. Drop the segment.".format(counter - 1))
 
-        # if receive fin, then break
+        # if receive FIN message, break
         if flag == 4 and counterSize >= filesize:
             break
-
 
 # close the file
 duplicated_file.close()
 
 # response to the clinet
 received_filesize = os.path.getsize(received_filename)
-print("\nThe tranmission is completed\nThe size of received file: {}".format(received_filesize))
+print("\nThe transmission is completed\nThe size of received file: {} bytes.".format(received_filesize))
 
 # MD5 checksum
 received_file = open("recv/"+received_filename, "rb")
 sended_file = open(received_filename, "rb")
 
 # termination message
-print("\nServer temination message:")
+print("\nServer Termination Message:")
 
 # MD5 checksum, check if two files are bitwise identical
-if server.MD5(sended_file, received_filename):
+if server.Md5(sended_file, received_file):
     print("The two files are bitwise identical.")
-    print("The file tranmission is completed and successful.")
+    print("The file transmission is completed and successful.")
 else:
     print("The two files are not bitwise identical.")
-    print("The file tranmission is completed but unsuccessful.")
+    print("The file transmission is completed but unsuccessful.")
 
-print("Filesize received by the server: {}\nFilename received by the server: {}" .format(received_filesize, received_filename))
+print("Filesize received by the server: {} bytes.\nFilename received by the server: {}" .format(received_filesize, received_filename))
 
 # close the file and the socket
 received_file.close()
