@@ -8,10 +8,9 @@ The default client port number is 4023.
 
 The Lab 4 contains two program files: ftpc.py, ftps.py.
     
-1. ftpc.py is to send all bytes of a local file to a troll process and the troll process will send the data to a remote server using Alternating Bit Protocol over UDP with an artificial packet loss rate.
+* ftpc.py is to send all bytes of a local file to a troll process and the troll process will send the data to a remote server using Alternating Bit Protocol over UDP with an artificial packet loss rate.
 
-    The default client port number is 4023.
-    Sleep time between two data segments is 0.015 s.
+    The default client port number is 4023. Sleep time between two data segments is 0.015 s.
 
     Firstly, the client will send the first segment: 4 bytes of filesize. The header is 8 bytes contains 4 bytes of server IP address, 2 bytes of server port number, 1 bytes of flag (flag is 1) and 1 bytes of sequence number {0,1}. The program generates sequence number periodically. After sending a packet, it waits for an ACK.
     1. If the client receives an ACK, it will check if the received ACK equals to next sequence number. If so, the transmission is successful and it will send next packet. If not, it will resend this segment immediately.
@@ -23,7 +22,7 @@ The Lab 4 contains two program files: ftpc.py, ftps.py.
 
     Finally, after all data has been transmitted, the client will send a FIN message in which the flag is 4 and break the loop without waiting for an ACK.
 
-2. ftps.py is to received all bytes from the client using Alternating Bit Protocol over UDP and send an ACK back through a troll process with an artificial packet loss rate.
++ ftps.py is to received all bytes from the client using Alternating Bit Protocol over UDP and send an ACK back through a troll process with an artificial packet loss rate.
 
     The received file is stored in the "recv" sub-folder with the same filename received from the client machine.
 
@@ -38,18 +37,26 @@ The Lab 4 contains two program files: ftpc.py, ftps.py.
     2. If the packet is correct, update expected sequence number and send it as ACK. Write the data to the new file.
 
     Finally, there are two ways to stop the program.
+
     1. If it receive a FIN message in which flag is 4, the program will break the loop of receiving data.
     2. If the size of received file matches the received filesize parameter and the program does not receive any packet for a while (timeout = 5s, because timeout of client is 50 ms), the program will break the loop of receiving data.
 
     After breaking the loop, the server program ftps.py checks if two files are bitwise identical. 
 
-troll is a process to receive packets in the same host and send packets to another host. troll process can change the delay and packet drop rate. troll program is attached.
+* troll is a process to receive packets in the same host and send packets to another host. troll process can change the delay and packet drop rate. troll program is attached.
 
 ## TESTING
-1. ftps.py:
 
-    Write "python3 ftps.py <local-port-on-gamma> <troll-port-on-gamma>" to run ftps.py.
-    It will print the status of every segments. The example is :
+### 1. ftps.py:
+
+Run ftps.py.  
+
+```bash
+python3 ftps.py <local-port-on-gamma> <troll-port-on-gamma>" 
+``` 
+
+It will print the status of every segments. The example is: 
+
     The size of the file to be received is: 10178 bytes.
     The name of the file to be received is: image4.jpg.
     1th data segment transmission is successful. Already received filesize is 900 bytes.
@@ -58,7 +65,8 @@ troll is a process to receive packets in the same host and send packets to anoth
     Warning! Found a duplicated 3th segment. Drop the segment.
     ...
 
-    Termination message is :
+Termination message is :
+
     Server Termination Message:
     The two files are bitwise identical.
     The file transmission is completed and successful.
@@ -66,13 +74,21 @@ troll is a process to receive packets in the same host and send packets to anoth
     Filename received by the server: image4.jpg
     Process time: 8.185008525848389 s.
 
-    If it is unsuccessful, it will print 
+If it is unsuccessful, it will print 
+
     The file transmission is completed but unsuccessful.
 
-2. ftpc.py:
+### 2. ftpc.py:
 
-    Write "python3 ftpc.py <remote-IP-on-gamma> <remote-port-on-gamma> <troll-port-on-beta> <local-file-to-transfer>" to run ftpc.py
-    It will print the status of every segments. The example is :
+Run ftpc.py
+
+```bash
+python3 ftpc.py <remote-IP-on-gamma> <remote-port-on-gamma> <troll-port-on-beta> <local-file-to-transfer>
+```
+
+
+It will print the status of every segments. The example is :
+
     Filesize of the file to be sent: 10178 bytes
     The client port number is 4023.
     Current sequence number is: 0, ACK from the server is: 1.
@@ -94,14 +110,24 @@ troll is a process to receive packets in the same host and send packets to anoth
     Warning! 4th segment lost. Resend 4th data segment.
     ...
 
-    Termination message is :
+Termination message is :
+
     Client Termination Message:
     The file transmission is completed.
     Filesize sent to the server: 10178 bytes.
     Filename received by the server: image4.jpg
     Process time: 1.7986280918121338 s.
 
-3. troll:
+### 3. troll:
 
-    On gamma server, write "troll -C <IP-address-of-gamma> -S <IP-address-of-beta> -a <server-port-on-gamma> -b <client-port-on-beta> <troll-port-on-gamma> -r -s 1 -t -x <packet-drop-%>" to run troll process.
-    On beta client, write "troll -C <IP-address-of-beta> -S <IP-address-of-gamma> -a <server-port-on-beta> -b <client-port-on-gamma> <troll-port-on-beta> -r -s 1 -t -x <packet-drop-%>" to run troll process.
+On gamma server, run troll process 
+
+```bash
+troll -C <IP-address-of-gamma> -S <IP-address-of-beta> -a <server-port-on-gamma> -b <client-port-on-beta> <troll-port-on-gamma> -r -s 1 -t -x <packet-drop-%>
+``` 
+
+On beta client, run troll process 
+
+```bash
+troll -C <IP-address-of-beta> -S <IP-address-of-gamma> -a <server-port-on-beta> -b <client-port-on-gamma> <troll-port-on-beta> -r -s 1 -t -x <packet-drop-%>
+```
