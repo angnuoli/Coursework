@@ -1,11 +1,4 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-@author: gjxhlan
-"""
-
 # Regression template
-
 # 1. Data Preprocessing
 
 # Import the libraries
